@@ -63,7 +63,7 @@ namespace gamboge
 	//! @return         neural network output value
 	//!
 	template< typename FwdIter1, typename FwdIter2, typename _Size >
-	typename std::iterator_traits<FwdIter1>::value_type
+	typename std::iterator_traits< FwdIter1 >::value_type
 	annet( FwdIter1 rbegin, FwdIter2 wtbegin, _Size n, _Size m )
 	{
 		FwdIter2 itw = wtbegin;
