@@ -1,3 +1,6 @@
+//! @file gamboge/nnet.h
+//! gamboge neural network library header file
+
 #ifndef _GAMBOGE_NNET_H
 #define _GAMBOGE_NNET_H 1
 
@@ -8,19 +11,10 @@
 
 namespace gamboge
 {
-
-	//! @brief  logistic transfer functor
+	//! linear transfer functor
 	//!
-	template< class T >
-	struct logistic_output : public std::unary_function<T,T>
-	{
-		T operator()( const T& x ) const
-		{
-			return static_cast<T>( 1 ) / ( static_cast<T>( 1 ) + std::exp( -x ) );
-		}
-	};
-
-	//! @brief  unity transfer functor
+	//! @par the identity function:
+	//! y = x
 	//!
 	template< class T >
 	struct linear_output : public std::unary_function<T,T>
@@ -31,108 +25,192 @@ namespace gamboge
 		}
 	};
 
-	template< typename FwdIter1, typename FwdIter2, typename OutIter, typename _Size, typename UnaryOp >
-	OutIter
-	_annet( FwdIter1 rbegin, FwdIter2 wtbegin, OutIter result, _Size n, _Size m, _Size k, UnaryOp outtransform )
+	//! logistic transfer functor
+	//!
+	//! @par the logistic function:
+	//! @f$ y = \frac{1}{1 + e^{-x}} @f$
+	//!
+	template< class T >
+	struct logistic_output : public std::unary_function<T,T>
 	{
-		FwdIter2 itw = wtbegin;
+		T operator()( const T& x ) const
+		{
+			return static_cast<T>( 1 ) / ( static_cast<T>( 1 ) + std::exp( -x ) );
+		}
+	};
+
+	//! @cond
+	//! implementation, target template code for functional dispatch
+	template< typename InIter1, typename InIter2, typename OutIter, typename Size, typename UnaryOp >
+	OutIter
+	_neural_network( InIter1 rbegin, InIter2 wtbegin, OutIter result,
+		Size nx, Size nh, Size ny, UnaryOp unaryop )
+	{
+		InIter2 itw = wtbegin;
 		typedef typename std::iterator_traits<OutIter>::value_type VT;
 
 
-		if ( m > 0 )
+		if ( nh > 0 )
 		{
 			// compute each of the hidden layer outputs
-			VT hidden_out[ m ];
+			VT hidden_out[ nh ];
 
-			for ( int hk = 0; hk < m; ++hk )
+			for ( int hk = 0; hk < nh; ++hk )
 			{
 				VT bias = *itw;
 				++itw;
-				FwdIter2 itw_end = itw + n;
+				InIter2 itw_end = itw + nx;
 				VT oh = std::inner_product( itw, itw_end, rbegin, bias );
 				itw = itw_end;
-				hidden_out[ hk ] = outtransform( oh );
+				hidden_out[ hk ] = unaryop( oh );
 			}
 
 			// feed the hidden layer outputs into the output layer units
-			for ( int ok = 0; ok < k; ++ok )
+			for ( int ok = 0; ok < ny; ++ok )
 			{
 				VT bias = *itw;
 				++itw;
-				FwdIter2 itw_end = itw + m;
+				InIter2 itw_end = itw + nh;
 				VT oh = std::inner_product( itw, itw_end, hidden_out, bias );
 				itw = itw_end;
-				*result++ = outtransform( oh );
+				*result++ = unaryop( oh );
 			}
 		}
-		else  // m is 0
+		else  // nh is 0
 		{
 			// feed the network inputs directly into the output layer units
-			for ( int ok = 0; ok < k; ++ok )
+			for ( int ok = 0; ok < ny; ++ok )
 			{
 				VT bias = *itw;
 				++itw;
-				FwdIter2 itw_end = itw + n;
-				VT oh = std::inner_product( itw, itw + n, rbegin, bias );
+				InIter2 itw_end = itw + nx;
+				VT oh = std::inner_product( itw, itw_end, rbegin, bias );
 				itw = itw_end;
-				*result++ = outtransform( oh );
+				*result++ = unaryop( oh );
 			}
 		}
 		return result;
 	}
+	//! @endcond
 
-	template< typename FwdIter1, typename FwdIter2, typename OutIter, typename _Size >
+	//! Compute artificial neural network outputs
+	//!
+	//! @param firstx   start of input value range
+	//! @param firstw   start of weights input range
+	//! @param result   start of output range
+	//! @param nx       input count
+	//! @param nh       hidden-layer count
+	//! @param ny       output count
+	//! @return iterator marking end of result sequence
+	//!
+	//! Computes feed-forward artificial neural network outputs. The network
+	//! has @p nx inputs, @p nh hidden-layer units and @p ny output units.
+	//! Network input values are read from the range
+	//! [ @p firstx, @p firstx + @p nx ).
+	//! Network output values are written to the range
+	//! [ @p result, @p result + @p ny ).
+	//! Bias and input weights for the hidden-layer and output-layer units
+	//! are read from the range [ @p firstw, @p firstw + @a v ), where the
+	//! number of weights @a v varies based upon @p nx, @p nh and @p ny.
+	//! @p the logistics_output function is applied at the output of each
+	//! hidden-layer and output-layer unit in the network.
+	//!
+	//! @par a neural unit output is:
+	//!    @a y = @b L( @a bias + &lang; @a x, @a w &rang; ) @n
+	//! The logistics operator @b L applied to the sum of the unit's bias and
+	//! the inner product of the unit's inputs and weights.
+	//!
+	//! <em>If @p nh is greater than 0</em>, the network inputs feed the
+	//! hidden-layer units and the hidden-layer units feed the output-layer units.
+	//! In this case the weights sequence starts
+	//! with blocks for each of the hidden-layer units followed by blocks for
+	//! each of the output-layer units.
+	//! Each hidden-layer block consists of 1 + @p nx values; the first value
+	//! is the bias for the unit and the remainder are weights for each of the
+	//! network inputs.
+	//! Each output-layer block consists of 1 + @p nh values; the first value
+	//! is the bias for the unit and the remainder are weights for each of the
+	//! hidden-layer unit outputs.
+	//! The number of weights is: @n
+	//! @a v = @p nh * ( 1 + @p nx ) + @p ny * ( 1 + @p nh ).
+	//!
+	//! <em>If @a nh equals 0</em>, there are no hidden-layer units and the network
+	//! inputs directly feed the output-layer units.
+	//! In this case the weights sequence consists of blocks for the output-layer
+	//! units.
+	//! Each output-layer block consists of 1 + @p nx values; the first value
+	//! is the bias for the unit and the remainder are weights for each of the
+	//! network inputs.
+	//! The number of weights is: @n
+	//! @a v = @p ny * ( 1 + @p nx ).
+	//!
+	template< typename InIter1, typename InIter2, typename OutIter, typename Size >
 	OutIter
-	annet( FwdIter1 rbegin, FwdIter2 wtbegin, OutIter result, _Size n, _Size m, _Size k )
+	neural_network( InIter1 firstx, InIter2 firstw, OutIter result,
+		Size nx, Size nh, Size ny )
 	{
 		typedef typename std::iterator_traits<OutIter>::value_type VT;
-		logistic_output< VT > outtransform;
-		return _annet( rbegin, wtbegin, result, n, m, k, outtransform );
+		return _neural_network( firstx, firstw, result, nx, nh, ny, logistic_output< VT >() );
 	}
 
-	//! @brief  Compute artificial neural network output.
+	//! Compute artificial neural network outputs
 	//!
-	//! Computes output of an artificial neural network with @a n inputs,
-	//! @a m hidden layer units and @a k output unit.
-	//! Network input values are read from the range [ rbegin, rbegin + n ).
+	//! @param firstx   start of input value sequence
+	//! @param firstw   start of weights sequence
+	//! @param result   start of output sequence
+	//! @param nx       input count
+	//! @param nh       hidden-layer count
+	//! @param ny       output count
+	//! @param unaryop  output transform for units
+	//! @return iterator marking end of result sequence
 	//!
-	//! For each unit the inner product of its inputs and weights is added to
-	//! a bias weight. This result is then fed into an output transfer function
-	//! often a logistic function, to produce the unit's output.
-	//!    y = L( bias + &lang; x, w &rang; )
+	//! Computes feed-forward artificial neural network outputs. The network
+	//! has @p nx inputs, @p nh hidden-layer units and @p ny output units.
+	//! Network input values are read from the range
+	//! [ @p firstx, @p firstx + @p nx ).
+	//! Network output values are written to the range
+	//! [ @p result, @p result + @p ny ).
+	//! Bias and input weights for the hidden-layer and output-layer units
+	//! are read from the range [ @p firstw, @p firstw + @a v ), where the
+	//! number of weights @a v varies based upon @p nx, @p nh and @p ny.
+	//! @p unaryop is applied at the output of each hidden-layer and output-layer
+	//! unit in the network.
 	//!
-	//! Each hidden layer unit has one bias input and @a n inputs connected to the @a n
-	//! network inputs. For each of the unit's inputs there is a corresponding weight. The
-	//! first @f$ 1 + n @f$ values starting at @a wtbegin are the first hidden layer
-	//! unit's bias and input weights; the first value is the bias and the remaining @a n
-	//! weights apply to the @a n network inputs in order. The next 1 + n values
-	//! in the weight range are the second hidden layer unit's weights, etc.
+	//! @par a neural unit output is:
+	//!    @a y = @b U( @a bias + &lang; @a x, @a w &rang; ) @n
+	//! @p unaryop (@b U) applied to the sum of the unit's bias and
+	//! the inner product of the unit's inputs and weights.
 	//!
-	//! When @a m is greater than 0, the output layer units each have one bias input and
-	//! @a m inputs connected to the @a m hidden layer outputs. The output layer
-	//! unit has 1+m weights and these are the last values in the range
-	//! [ wtbegin, wtbegin + (n+2)*m+1 ).
+	//! <em>If @p nh is greater than 0</em>, the network inputs feed the
+	//! hidden-layer units and the hidden-layer units feed the output-layer units.
+	//! In this case the weights sequence starts
+	//! with blocks for each of the hidden-layer units followed by blocks for
+	//! each of the output-layer units.
+	//! Each hidden-layer block consists of 1 + @p nx values; the first value
+	//! is the bias for the unit and the remainder are weights for each of the
+	//! network inputs.
+	//! Each output-layer block consists of 1 + @p nh values; the first value
+	//! is the bias for the unit and the remainder are weights for each of the
+	//! hidden-layer unit outputs.
+	//! The number of weights is: @n
+	//! @a v = @p nh * ( 1 + @p nx ) + @p ny * ( 1 + @p nh ).
 	//!
-	//! If @a m equals 0 then there is no hidden layer and the network inputs
-	//! connect directly to the output units. In this case the values in
-	//! the range [ wtbegin, wtbegin + n+1 ) apply to the output unit;
-	//! the first value is the bias and the remaining @a n weights apply
-	//! to the @a n network inputs in order.
+	//! <em>If @a nh equals 0</em>, there are no hidden-layer units and the network
+	//! inputs directly feed the output-layer units.
+	//! In this case the weights sequence consists of blocks for the output-layer
+	//! units.
+	//! Each output-layer block consists of 1 + @p nx values; the first value
+	//! is the bias for the unit and the remainder are weights for each of the
+	//! network inputs.
+	//! The number of weights is: @n
+	//! @a v = @p ny * ( 1 + @p nx ).
 	//!
-	//! @param rbegin   start of input value range
-	//! @param wtbegin  start of weights input range
-	//! @param result   start of output range
-	//! @param n        count of neural network inputs
-	//! @param m        count of hidden layer units
-	//! @param k        count of neural network outputs
-	//! @param outtransform  output transform used for each unit
-	//! @return         iterator pointing just after values written to result
-	//!
-	template< typename FwdIter1, typename FwdIter2, typename OutIter, typename _Size, typename UnaryOp >
+	template< typename InIter1, typename InIter2, typename OutIter, typename Size, typename UnaryOp >
 	OutIter
-	annet( FwdIter1 rbegin, FwdIter2 wtbegin, OutIter result, _Size n, _Size m, _Size k, UnaryOp outtransform )
+	neural_network( InIter1 firstx, InIter2 firstw, OutIter result,
+		Size nx, Size nh, Size ny, UnaryOp unaryop )
 	{
-		return _annet( rbegin, wtbegin, result, n, m, k, outtransform );
+		return _neural_network( firstx, firstw, result, nx, nh, ny, unaryop );
 	}
 }
 

@@ -45,7 +45,7 @@ test_631( )
 	for ( int k = 0; k < num_tests; ++k )
 	{
 		float nn_out;
-		gamboge::annet( &(test_inputs[k][0]), test_wts, &nn_out, 6u, 3u, 1u );
+		gamboge::neural_network( &(test_inputs[k][0]), test_wts, &nn_out, 6u, 3u, 1u );
 		std::cout << std::setprecision( 6 ) << std::fixed;
 		std::cout << "6-3-1 run " << std::setw(2) << k << ":";
 		std::cout << " result=" << nn_out;
@@ -91,7 +91,8 @@ test_401( )
 	for ( int k = 0; k < num_tests; ++k )
 	{
 		float nn_out;
-		gamboge::annet( &(test_inputs[k][0]), test_wts, &nn_out, 4u, 0u, 1u );
+		gamboge::neural_network( &(test_inputs[k][0]), test_wts, &nn_out, 4u, 0u, 1u,
+			gamboge::logistic_output<float>() );
 		std::cout << "4-0-1 run " << std::setw(2) << k << ":";
 		std::cout << std::setprecision( 6 ) << std::fixed;
 		std::cout << " result=" << nn_out;
