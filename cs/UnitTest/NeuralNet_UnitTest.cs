@@ -1,6 +1,8 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Gamboge;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GambogeUnitTest
 {
@@ -43,15 +45,15 @@ namespace GambogeUnitTest
         [TestMethod]
         public void test_631()
         {
-            NeuralNetwork t631_nnet = new NeuralNetwork(6, 3, t631_test_wts);
+            NeuralNetwork t631_nnet = new NeuralNetwork(6, 3, 1, t631_test_wts);
             for (int k = 0; k < 8; ++k)
             {
-                float nn_out = t631_nnet.Compute( t631_test_inputs[k] );
-                System.Console.Write("6-3-1 run {0:D2}:", k );
-                System.Console.Write(" result={0:F6}", nn_out);
-                System.Console.Write(", expected={0:F6}", t631_expected_outputs[k] );
-                System.Console.WriteLine();
-                Assert.IsTrue(Math.Abs(t631_expected_outputs[k] - nn_out) < 5E-7);
+                IEnumerable<float> nn_out = t631_nnet.Compute( t631_test_inputs[k] );
+                Console.Write("6-3-1 run {0:D2}:", k );
+                Console.Write(" result={0:F6}", nn_out.First());
+                Console.Write(", expected={0:F6}", t631_expected_outputs[k] );
+                Console.WriteLine();
+                Assert.IsTrue(Math.Abs(t631_expected_outputs[k] - nn_out.First()) < 5E-7);
             }
         }
     }
