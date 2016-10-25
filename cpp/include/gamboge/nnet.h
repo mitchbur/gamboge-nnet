@@ -9,6 +9,7 @@
 #include <iterator>
 #include <numeric>
 #include <cmath>
+#include <new>
 
 namespace gamboge
 {
@@ -83,19 +84,34 @@ namespace gamboge
 	{
 		InIter2 itw = wtbegin;
 		typedef typename std::iterator_traits<OutIter>::value_type VT;
-		VT linout[ ny ];
+		// create a buffer for input values, hidden-layer unit outputs and
+		// output-layer unit linear outputs
+		VT* unitsbuf = new (std::nothrow) VT[ nx + nh + ny ];
+		if ( unitsbuf == 0 )
+		{
+			return result;
+		}
+		VT* inbuf = &(unitsbuf[0]);
+		VT* hidden_out = &(unitsbuf[nx]);
+		VT* linout = &(unitsbuf[nx+nh]);
+
+		// to support Input Iterator type
+		// read using rbegin in one forward pass
+		// data is buffered because it will be read many times
+		for ( int k = 0; k < nx; ++k )
+		{
+			inbuf[k] = *rbegin++;
+		}
 
 		if ( nh > 0 )
 		{
 			// compute each of the hidden layer outputs
-			VT hidden_out[ nh ];
-
 			for ( int hk = 0; hk < nh; ++hk )
 			{
 				VT bias = *itw;
 				++itw;
 				InIter2 itw_end = itw + nx;
-				VT oh = std::inner_product( itw, itw_end, rbegin, bias );
+				VT oh = std::inner_product( itw, itw_end, inbuf, bias );
 				itw = itw_end;
 				hidden_out[ hk ] = logistic_output< VT >()( oh );
 			}
@@ -118,7 +134,7 @@ namespace gamboge
 				VT bias = *itw;
 				++itw;
 				InIter2 itw_end = itw + nx;
-				linout[ok] = std::inner_product( itw, itw_end, rbegin, bias );
+				linout[ok] = std::inner_product( itw, itw_end, inbuf, bias );
 				itw = itw_end;
 			}
 		}
@@ -132,6 +148,8 @@ namespace gamboge
 		{
 			std::transform( linout, &(linout[ny]), result, unaryop );
 		}
+
+		delete[] unitsbuf;
 
 		return result;
 	}
