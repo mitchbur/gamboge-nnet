@@ -1,3 +1,5 @@
+#include "cppunit/TestRunner.h"
+
 extern void gamboge_nnet_runtests( );
 
 int

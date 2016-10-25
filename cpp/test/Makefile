@@ -1,18 +1,14 @@
-OBJLIST = gamboge_nnet_test.o main.o
 FINAL = nnet.test
-INCDIR = ../include
-CTOOL = clang++
-CPPFLAGS = -g
-
-%.o: %.cpp
-	$(CTOOL) $(CPPFLAGS) -I $(INCDIR) -c -o $@ $<
+OBJLIST = gamboge_nnet_test.o main.o
+CPPFLAGS = -g -I../include
+LDLIBS = -lcppunit
 
 $(FINAL): $(OBJLIST)
-	$(CTOOL) -o $(FINAL) $(OBJLIST)
+	$(CXX) -o $(FINAL) $(OBJLIST) $(LDLIBS)
 
 clean:
 	rm -f $(OBJLIST) $(FINAL)
 
 main.o: main.cpp
 
-gamboge_nnet_test.o: gamboge_nnet_test.cpp $(INCDIR)/gamboge/nnet.h
+gamboge_nnet_test.o: gamboge_nnet_test.cpp ../include/gamboge/nnet.h

@@ -4,6 +4,7 @@
 #ifndef _GAMBOGE_NNET_H
 #define _GAMBOGE_NNET_H 1
 
+#include <algorithm>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -39,6 +40,40 @@ namespace gamboge
 		}
 	};
 
+	template< typename T, typename T2 >
+	struct normexp_op : public std::unary_function< T, T2 >
+	{
+		normexp_op( T norm )
+			: norm( norm )
+		{}
+
+		T2 operator( )( const T& x ) const
+		{
+			return std::exp( x - norm );
+		}
+
+		T norm;
+	};
+
+	template< typename FwdIter, typename FwdIter2 >
+	FwdIter2
+	_softmax( FwdIter first, FwdIter last, FwdIter2 result )
+	{
+		typedef typename std::iterator_traits<FwdIter>::value_type VT;
+		typedef typename std::iterator_traits<FwdIter2>::value_type VT2;
+
+		// determine maximum input value mx, then compute exp( x - mx )
+		// for each input
+		FwdIter maxin_p = std::max_element( first, last );
+		FwdIter2 result_last = std::transform( first, last, result,
+			normexp_op< VT, VT2 >(*maxin_p) );
+
+		VT denom = std::accumulate( first, last, static_cast<VT>(0) );
+
+		std::transform( result, result_last, result, std::bind2nd( std::divides< VT2 >(), denom ) );
+		return result_last;
+	}
+
 	//! @cond
 	//! implementation, target template code for functional dispatch
 	template< typename InIter1, typename InIter2, typename OutIter, typename Size, typename UnaryOp >
@@ -48,7 +83,7 @@ namespace gamboge
 	{
 		InIter2 itw = wtbegin;
 		typedef typename std::iterator_traits<OutIter>::value_type VT;
-
+		VT linout[ ny ];
 
 		if ( nh > 0 )
 		{
@@ -62,7 +97,7 @@ namespace gamboge
 				InIter2 itw_end = itw + nx;
 				VT oh = std::inner_product( itw, itw_end, rbegin, bias );
 				itw = itw_end;
-				hidden_out[ hk ] = unaryop( oh );
+				hidden_out[ hk ] = logistic_output< VT >()( oh );
 			}
 
 			// feed the hidden layer outputs into the output layer units
@@ -71,9 +106,8 @@ namespace gamboge
 				VT bias = *itw;
 				++itw;
 				InIter2 itw_end = itw + nh;
-				VT oh = std::inner_product( itw, itw_end, hidden_out, bias );
+				linout[ok] = std::inner_product( itw, itw_end, &(hidden_out[0]), bias );
 				itw = itw_end;
-				*result++ = unaryop( oh );
 			}
 		}
 		else  // nh is 0
@@ -84,11 +118,21 @@ namespace gamboge
 				VT bias = *itw;
 				++itw;
 				InIter2 itw_end = itw + nx;
-				VT oh = std::inner_product( itw, itw_end, rbegin, bias );
+				linout[ok] = std::inner_product( itw, itw_end, rbegin, bias );
 				itw = itw_end;
-				*result++ = unaryop( oh );
 			}
 		}
+
+		if ( ny > 1 )
+		{
+			_softmax( linout, &(linout[ny]), linout );
+			std::copy( linout, &(linout[ny]), result );
+		}
+		else
+		{
+			std::transform( linout, &(linout[ny]), result, unaryop );
+		}
+
 		return result;
 	}
 	//! @endcond
