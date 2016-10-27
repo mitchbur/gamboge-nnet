@@ -175,9 +175,13 @@ namespace gamboge
 	//! are read from the range [ @p firstw, @p firstw + @a v ), where the
 	//! number of weights @a v varies based upon @p nx, @p nh and @p ny.
 	//! @p the logistics_output function is applied at the output of each
-	//! hidden-layer and output-layer unit in the network.
+	//! hidden-layer. If there is a single output-layer unit then the 
+	/// logistics_output function is applied at the output of  the output-layer
+	/// unit. If there are multiple output-layer units then the softmax operator
+	/// is applied to the output-layer units' linear outputs and the result is
+	/// the output for the the network.
 	//!
-	//! @par a neural unit output is:
+	//! @par a hidden-layer neural unit output is:
 	//!    @a y = @b L( @a bias + &lang; @a x, @a w &rang; ) @n
 	//! The logistics operator @b L applied to the sum of the unit's bias and
 	//! the inner product of the unit's inputs and weights.
@@ -235,12 +239,16 @@ namespace gamboge
 	//! Bias and input weights for the hidden-layer and output-layer units
 	//! are read from the range [ @p firstw, @p firstw + @a v ), where the
 	//! number of weights @a v varies based upon @p nx, @p nh and @p ny.
-	//! @p unaryop is applied at the output of each hidden-layer and output-layer
-	//! unit in the network.
+	//! @p the logistics_output function is applied at the output of each
+	//! hidden-layer unit. If there is a single output-layer unit then 
+	/// @p unaryop is applied at the output of  the output-layer
+	/// unit. If there are multiple output-layer units then the softmax operator
+	/// is applied to the output-layer units' linear outputs and the result is
+	/// the output for the the network.
 	//!
-	//! @par a neural unit output is:
-	//!    @a y = @b U( @a bias + &lang; @a x, @a w &rang; ) @n
-	//! @p unaryop (@b U) applied to the sum of the unit's bias and
+	//! @par a hidden-layer neural unit output is:
+	//!    @a y = @b L( @a bias + &lang; @a x, @a w &rang; ) @n
+	//! The logistics operator @b L applied to the sum of the unit's bias and
 	//! the inner product of the unit's inputs and weights.
 	//!
 	//! <em>If @p nh is greater than 0</em>, the network inputs feed the

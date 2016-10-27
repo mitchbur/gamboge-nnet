@@ -78,6 +78,20 @@ namespace Gamboge
         }
 
         /// <summary>
+        /// softmax vector transform
+        /// </summary>
+        /// <param name="v">vector</param>
+        /// <returns>vector of scaled exponentials of inputs summing to 1.0</returns>
+        public static IEnumerable<float> softmax( IEnumerable<float> v )
+        {
+            // normalize exponents to prevent overflow
+            var maxin = v.Max();
+            var vexp = v.Select( x => { return (float)Math.Exp( x - maxin ); } );
+            var denom = vexp.Sum();
+            return vexp.Select(x => { return x / denom; });
+        }
+
+        /// <summary>
         /// Compute artificial neural network output.
         /// </summary>
         /// <param name="inputs">input value sequence</param>
@@ -94,12 +108,16 @@ namespace Gamboge
         /// Network input values are read from <c>inputs</c> sequence.  Bias and input 
         /// weights for the hidden-layer and output-layer units are read from 
         /// <c>weights</c>, where the number of weights v varies based upon <c>nx</c>,
-        /// <c>nh</c> and <c>ny</c>. <c>unaryop</c> is applied at the output of each 
-        /// hidden-layer and output-layer unit in the network.
+        /// <c>nh</c> and <c>ny</c>. The logistics operator is applied to each of
+        /// the hidden-layer unit outputs. If there is a single output-layer unit
+        /// then <c>unaryop</c> is applied at the output of  the output-layer unit.
+        /// If there are multiple output-layer units then the softmax operator is
+        /// applied to the output-layer units' linear outputs and the result is the
+        /// vector output for the network.
         /// </para><para>
-        /// a neural unit output is:
-        ///       y = U( bias + 〈 x, w 〉 )
-        /// <c>unaryop</c> U applied to the sum of the unit's bias and
+        /// a hidden-layer neural unit output is:
+        ///       y = L( bias + 〈 x, w 〉 )
+        /// The logistics operator L applied to the sum of the unit's bias and
         /// the inner product of the unit's inputs and weights.
         /// </para><para>
         /// If <c>nh</c> is greater than 0, the network inputs feed the hidden-layer
@@ -132,9 +150,11 @@ namespace Gamboge
             int ny,
             Func<float, float> unaryop )
         {
+            IEnumerable<float> linout;
+
             if ( nh > 0 )
             {
-                // compute each of the hidden layer outputs
+                // compute each of the hidden-layer outputs
 
                 IEnumerable<float> hidden_out = Enumerable.Range(0, nh).Select(
                     hk =>
@@ -142,34 +162,43 @@ namespace Gamboge
                            int sk = hk * (1 + nx);
                            var oh = weights.Skip(sk).First();  // the bias
                            oh += values.Zip(weights.Skip(sk + 1), (x,w) => w * x).Sum();
-                           return unaryop( oh );
+                           return logistic_output( oh );
                        } );
 
-                // feed the hidden layer outputs into the output layer unit
+                // feed the hidden-layer outputs into the output-layer units
                 int owts_begin = nh * (1 + nx);
-                IEnumerable<float> result = Enumerable.Range(0, ny).Select(
+                linout = Enumerable.Range(0, ny).Select(
                     hy =>
                         {
                             int sk = owts_begin + hy * (1 + nh);
                             var oy = weights.Skip(sk).First();  // the bias
                             oy += hidden_out.Zip(weights.Skip(sk + 1), (x,w) => w * x).Sum();
-                            return unaryop(oy);
+                            return oy;
                         });
-                return result;
             }
             else  // m is 0
             {
-                // feed the network inputs directly into the output layer unit
-                IEnumerable<float> result = Enumerable.Range(0, ny).Select(
+                // feed the network inputs directly into the output-layer units
+                linout = Enumerable.Range(0, ny).Select(
                     hy =>
                     {
                         int sk = hy * (1 + nx);
                         var oy = weights.Skip(sk).First();  // the bias
                         oy += values.Zip(weights.Skip(sk + 1), (x, w) => w * x).Sum();
-                        return unaryop(oy);
+                        return oy;
                     });
-                return result;
             }
+
+            IEnumerable<float> result;
+            if ( ny > 1 )
+            {
+                result = softmax(linout);
+            }
+            else
+            {
+                result = linout.Select(unaryop);
+            }
+            return result;
         }
     }
 }
