@@ -4,3 +4,8 @@
 cs/Gamboge.userprefs
 cs/packages
 cs/.vs
+**/*.o
+**/doc/html
+**/doc/latex
+**/doc/man
+cpp/test/nnet.test

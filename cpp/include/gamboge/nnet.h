@@ -79,7 +79,7 @@ namespace gamboge
 	//! implementation, target template code for functional dispatch
 	template< typename InIter1, typename InIter2, typename OutIter, typename Size, typename UnaryOp >
 	OutIter
-	_neural_network( InIter1 rbegin, InIter2 wtbegin, OutIter result,
+	_evaluate_neural_network( InIter1 rbegin, InIter2 wtbegin, OutIter result,
 		Size nx, Size nh, Size ny, UnaryOp unaryop )
 	{
 		InIter2 itw = wtbegin;
@@ -155,7 +155,7 @@ namespace gamboge
 	}
 	//! @endcond
 
-	//! Compute artificial neural network outputs
+	//! Evaluate artificial neural network outputs
 	//!
 	//! @param firstx   start of input value range
 	//! @param firstw   start of weights input range
@@ -175,7 +175,7 @@ namespace gamboge
 	//! are read from the range [ @p firstw, @p firstw + @a v ), where the
 	//! number of weights @a v varies based upon @p nx, @p nh and @p ny.
 	//! @p the logistics_output function is applied at the output of each
-	//! hidden-layer. If there is a single output-layer unit then the 
+	//! hidden-layer. If there is a single output-layer unit then the
 	/// logistics_output function is applied at the output of  the output-layer
 	/// unit. If there are multiple output-layer units then the softmax operator
 	/// is applied to the output-layer units' linear outputs and the result is
@@ -212,14 +212,14 @@ namespace gamboge
 	//!
 	template< typename InIter1, typename InIter2, typename OutIter, typename Size >
 	OutIter
-	neural_network( InIter1 firstx, InIter2 firstw, OutIter result,
+	evaluate_neural_network( InIter1 firstx, InIter2 firstw, OutIter result,
 		Size nx, Size nh, Size ny )
 	{
 		typedef typename std::iterator_traits<OutIter>::value_type VT;
-		return _neural_network( firstx, firstw, result, nx, nh, ny, logistic_output< VT >() );
+		return _evaluate_neural_network( firstx, firstw, result, nx, nh, ny, logistic_output< VT >() );
 	}
 
-	//! Compute artificial neural network outputs
+	//! Evaluate artificial neural network outputs
 	//!
 	//! @param firstx   start of input value sequence
 	//! @param firstw   start of weights sequence
@@ -240,7 +240,7 @@ namespace gamboge
 	//! are read from the range [ @p firstw, @p firstw + @a v ), where the
 	//! number of weights @a v varies based upon @p nx, @p nh and @p ny.
 	//! @p the logistics_output function is applied at the output of each
-	//! hidden-layer unit. If there is a single output-layer unit then 
+	//! hidden-layer unit. If there is a single output-layer unit then
 	/// @p unaryop is applied at the output of  the output-layer
 	/// unit. If there are multiple output-layer units then the softmax operator
 	/// is applied to the output-layer units' linear outputs and the result is
@@ -277,11 +277,66 @@ namespace gamboge
 	//!
 	template< typename InIter1, typename InIter2, typename OutIter, typename Size, typename UnaryOp >
 	OutIter
-	neural_network( InIter1 firstx, InIter2 firstw, OutIter result,
+	evaluate_neural_network( InIter1 firstx, InIter2 firstw, OutIter result,
 		Size nx, Size nh, Size ny, UnaryOp unaryop )
 	{
-		return _neural_network( firstx, firstw, result, nx, nh, ny, unaryop );
+		return _evaluate_neural_network( firstx, firstw, result, nx, nh, ny, unaryop );
 	}
+
+	//! artificial neural network
+	template < typename InIter, typename InIterWt, typename OutIter, typename Size >
+	class neural_network
+	{
+	public:
+		// typedef typename std::iterator_traits<OutIter>::value_type value_type;
+
+		//! constructor, artificial neural network
+		//!
+		neural_network( int n, int m, int k, InIterWt wts )
+		: input_count( n ),
+		  hidden_count( m ),
+		  output_count( k ),
+		  weights( wts )
+		{
+		}
+
+		//! Evaluate artificial neural network outputs
+		//!
+		//! @param result   start of output sequence
+		//! @param values   start of input value sequence
+		//! @return iterator marking end of result sequence
+		//!
+		//! Example
+		//! @code
+		//! {
+		//! 	typedef gamboge::neural_network< const double*, const double*, double*, unsigned > nnet_type;
+		//! 	const unsigned in_count = 3;
+		//! 	const unsigned hidden_count = 2;
+		//! 	const unsigned out_count = 1;
+		//! 	const double wts[ ] = {
+		//! 		 0.56974212, -1.5468268,  1.494846, -2.8907045,
+		//! 		-6.5020564,   3.0203401, -1.7088961, 2.5260361,
+		//! 		 3.393649,   -6.7710899, -7.2983476
+		//! 		};
+		//! 	nnet_type example_nnet( in_count, hidden_count, out_count, &(wts[0]) );
+		//! 	const double nn_in[ in_count ] = { 1.4, 6.8, 4.8 };
+		//! 	double nn_out[ out_count ];
+		//!
+		//! 	example_nnet.evaluate( nn_out, nn_in );
+		//! }
+		//! @endcode
+		OutIter evaluate( OutIter result, InIter values ) const
+		{
+			return evaluate_neural_network( values, weights, result,
+				input_count, hidden_count, output_count );
+		}
+
+	private:
+		Size input_count;
+		Size hidden_count;
+		Size output_count;
+		InIterWt weights;
+	};
 }
 
 #endif

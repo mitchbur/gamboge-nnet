@@ -50,7 +50,7 @@ namespace Gamboge
 
         public IEnumerable<float> Compute(IEnumerable<float> values)
         {
-            return NeuralNetworkMath.CalculateNetwork(values, weights, 
+            return NeuralNetworkMath.CalculateNetwork(values, weights,
                 input_count, hidden_count, output_count, outtransform);
         }
     }
@@ -103,10 +103,10 @@ namespace Gamboge
         /// <returns>neural network output value</returns>
         /// <remarks>
         /// <para>
-        /// Computes feed-forward artificial neural network outputs. The network has 
+        /// Computes feed-forward artificial neural network outputs. The network has
         /// <c>nx</c> inputs, <c>nh</c> hidden-layer units and <c>ny</c> output units.
-        /// Network input values are read from <c>inputs</c> sequence.  Bias and input 
-        /// weights for the hidden-layer and output-layer units are read from 
+        /// Network input values are read from <c>inputs</c> sequence.  Bias and input
+        /// weights for the hidden-layer and output-layer units are read from
         /// <c>weights</c>, where the number of weights v varies based upon <c>nx</c>,
         /// <c>nh</c> and <c>ny</c>. The logistics operator is applied to each of
         /// the hidden-layer unit outputs. If there is a single output-layer unit
@@ -121,13 +121,13 @@ namespace Gamboge
         /// the inner product of the unit's inputs and weights.
         /// </para><para>
         /// If <c>nh</c> is greater than 0, the network inputs feed the hidden-layer
-        /// units and the hidden-layer units feed the output-layer units. In this 
+        /// units and the hidden-layer units feed the output-layer units. In this
         /// case the weights sequence starts with blocks for each of the hidden-layer
-        /// units followed by blocks for each of the output-layer units. Each 
+        /// units followed by blocks for each of the output-layer units. Each
         /// hidden-layer block consists of 1 + <c>nx</c> values; the first value
         /// is the bias for the unit and the remainder are weights for each of the
         /// network inputs. Each output-layer block consists of 1 + <c>nh</c> values;
-        /// the first value is the bias for the unit and the remainder are weights 
+        /// the first value is the bias for the unit and the remainder are weights
         /// for each of the hidden-layer unit outputs. The number of weights is:
         ///    v = nh * ( 1 + nx ) + ny * ( 1 + nh ).
         /// </para><para>

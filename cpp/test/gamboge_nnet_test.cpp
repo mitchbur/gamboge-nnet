@@ -36,14 +36,14 @@ public:
 	 expected_out( expected_out )
 	{ }
 
-	void run_test( )
+	void run_test_algo( )
 	{
 		FP max_error = static_cast<FP>( 0 );
 		std::vector<FP> nn_out( out_count );
 
 		for ( unsigned k = 0; k < verif_count; ++k )
 		{
-			gamboge::neural_network( &(verif_in[k*in_count]), wts, nn_out.begin(),
+			gamboge::evaluate_neural_network( &(verif_in[k*in_count]), wts, nn_out.begin(),
 				in_count, hidden_count, out_count );
 
 			// use "inner_product" to determine maximum absolute difference
@@ -55,8 +55,40 @@ public:
 				fmax, absdiff<FP>() );
 		}
 
-		CPPUNIT_ASSERT_ASSERTION_PASS_MESSAGE( "check maximum absolute error",
+		CPPUNIT_ASSERT_ASSERTION_PASS_MESSAGE( "check maximum absolute error (algorithm)",
 			CPPUNIT_ASSERT_LESS( 7.8E-7F, max_error ) );
+	}
+
+	void run_test_class( )
+	{
+		typedef gamboge::neural_network< const FP*, const FP*, FP*, unsigned > nnet_type;
+		FP max_error = static_cast<FP>( 0 );
+		FP* nn_out = new FP[ out_count ];
+		nnet_type* nnet_uut = new nnet_type( in_count, hidden_count, out_count, wts );
+
+		for ( unsigned k = 0; k < verif_count; ++k )
+		{
+			nnet_uut->evaluate( nn_out, &(verif_in[k*in_count]) );
+
+			// use "inner_product" to determine maximum absolute difference
+			// of result and expected values; the absdiff operator will be
+			// called for each corresponding expected and result values
+			// and the max operator will select the greatest value seen
+			max_error = std::inner_product( nn_out, nn_out + out_count,
+				&(expected_out[k*out_count]), max_error,
+				fmax, absdiff<FP>() );
+		}
+
+		CPPUNIT_ASSERT_ASSERTION_PASS_MESSAGE( "check maximum absolute error (nnet class)",
+			CPPUNIT_ASSERT_LESS( 7.8E-7F, max_error ) );
+
+		delete[] nn_out;
+	}
+
+	void run_test( )
+	{
+		run_test_algo( );
+		run_test_class( );
 	}
 
 private:
@@ -197,6 +229,34 @@ const float ann321TestCase::predicted[] =
 	0.76039408F
 };
 
+
+// example neural network 3-2-1
+class example321TestCase : public CppUnit::TestCase
+{
+public:
+	example321TestCase( std::string name )
+	: CppUnit::TestCase( name )
+	{}
+
+	void runTest( )
+	{
+		typedef gamboge::neural_network< const double*, const double*, double*, unsigned > nnet_type;
+		const unsigned in_count = 3;
+		const unsigned hidden_count = 2;
+		const unsigned out_count = 1;
+		const double wts[ ] = {
+			 0.56974212, -1.5468268,  1.494846, -2.8907045,
+			-6.5020564,   3.0203401, -1.7088961, 2.5260361,
+			 3.393649,   -6.7710899, -7.2983476
+			};
+		nnet_type example_nnet( in_count, hidden_count, out_count, &(wts[0]) );
+		const double nn_in[ in_count ] = { 1.4, 6.8, 4.8 };
+		double nn_out[ out_count ];
+
+		example_nnet.evaluate( nn_out, nn_in );
+	}
+};
+
 // test neural network 4-2-3 topology
 class ann423TestCase : public CppUnit::TestCase
 {
@@ -281,6 +341,7 @@ gamboge_nnet_runtests( )
 	suite->addTest( new ann631TestCase( "nnet 6-3-1 topology" ) );
 	suite->addTest( new ann321TestCase( "nnet 3-2-1 topology" ) );
 	suite->addTest( new ann423TestCase( "nnet 4-2-3 topology" ) );
+	suite->addTest( new example321TestCase( "example 3-2-1 neural network" ) );
 
 	runner.addTest( suite );
 	runner.run( );
